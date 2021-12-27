@@ -16,16 +16,16 @@ import { ReferenceDataContext } from "../share/ReferenceDataContext";
 import { randomColor } from "native-base/lib/typescript/theme/tools";
 
 function delay(delay: number) {
-  return new Promise(r => {
+  return new Promise((r) => {
     setTimeout(r, delay);
-  })
+  });
 }
 
 const randomIntFromInterval = (min: number, max: number) => {
   // min and max included
   return Math.floor(Math.random() * (max - min + 1) + min);
 };
-
+const sound = new Audio.Sound();
 export function FetchData() {
   const { data } = useContext(ReferenceDataContext);
   const [apiInfo, setApiInfo] = useState({});
@@ -37,13 +37,25 @@ export function FetchData() {
     urlAudio: "https://freetts.com/audio",
   };
   const [info, setInfo] = React.useState("https://truyenchu.vn");
-  const [link, setLink] = React.useState("/tien-de-tro-ve/chuong-880-lai-mot-cai-tat");
-  const [nextPath, setNextPath] = React.useState("/tien-de-tro-ve/chuong-880-lai-mot-cai-tat");
+  const [link, setLink] = React.useState(
+    "/tien-de-tro-ve/chuong-880-lai-mot-cai-tat"
+  );
+  const [nextPath, setNextPath] = React.useState(
+    "/tien-de-tro-ve/chuong-880-lai-mot-cai-tat"
+  );
   const [remoteData, setRemoteData] = React.useState("No data fetched yet!");
-  const [sound, setSound] = React.useState<any>();
-  const [abortController, setAbort] = React.useState();
+  // const [sound, setSound] = React.useState<any>();
+  const [abortController, setAbort] = React.useState(new AbortController());
+  const [queueId, setQueueId] = React.useState([]);
+  const [queueString, setQueueStr] = React.useState([]);
+  const [flagIdRunning, setFlagId] = React.useState(false);
+  const [isPlay, setPlay] = React.useState(false);
 
   async function load() {
+    setPlay(false);
+    setFlagId(false);
+    setQueueStr([]);
+    setQueueId([]);
     let abortClone = new AbortController();
     if (abortController != null) {
       abortController.abort();
@@ -57,44 +69,109 @@ export function FetchData() {
     setNextPath($("#next_chap").first().attr("href"));
     // console.log($("#next_chap").first().attr("href"));
     let arrStr = new Array();
-    truncate($("#chapter-c").text(), arrStr, 50);
+    truncate($("#chapter-c").text(), arrStr, 20);
     console.log(arrStr);
     // const run = async () => {
     //   await playSound("047e78b7-7aa8-4cfa-aab6-f93e591d6278.mp3");
     //   await playSound("f8cae8b7-d493-472c-9b6c-4aead5676b6a.mp3");
     // };
     // run();
-    arrayTrunc(arrStr, 2, 0, process, abortClone.signal)
+    // arrayTrunc(arrStr, 2, 0, process, abortClone.signal);
+    setQueueStr(arrStr);
   }
 
-  const arrayTrunc = async (arr: any[], n: number, start: any, func: (arrStr: any, signal: any) => {}, signal: any) => {
-    if (signal.aborted) return
-    if (n >= arr.length) return await func(arr, signal)
+  useEffect(() => {
+    if (
+      !flagIdRunning &&
+      queueId.length < 2 &&
+      queueString.length > 0 &&
+      abortController != null
+    ) {
+      setFlagId(true);
+      const strClone = [...queueString];
+      const str = strClone.shift();
+      setQueueStr(strClone);
+      getMp3File(str, abortController.signal).then((id) => {
+        setFlagId(false);
+        if (id != null) {
+          setQueueId((queueIdPrev) => {
+            const quueClone = [...queueIdPrev];
+            quueClone.push(id);
+            return quueClone;
+          });
+        }
+      });
+    }
+  }, [queueId, queueString, abortController, flagIdRunning]);
+
+  useEffect(() => {
+    if (!isPlay && queueId.length > 0 && abortController != null) {
+      console.log("play");
+      setPlay(true);
+      const idClone = [...queueId];
+      const id = idClone.shift();
+      setQueueId(idClone);
+      playSound(id, abortController.signal).then(() => {
+        setPlay(false);
+      });
+    }
+  }, [queueId, abortController, isPlay]);
+
+  // const processGetId = async (strArr: string[], signal: any) => {
+  //   if (signal.aborted) return;
+  //   console.log(strArr);
+  //   for (let index = 0; index < strArr.length; index++) {
+  //     queueId.push();
+  //   }
+  //   const promiseArr: Promise<any>[] = [];
+  //   strArr.forEach(async (x) => {
+  //     await push();
+  //   });
+  //   await Promise.all(promiseArr).then(async (values) => {
+  //     let filtered: any[] = values.filter(function (e) {
+  //       return e != null;
+  //     });
+  //     for (let index = 0; index < filtered.length; index++) {
+  //       await playSound(filtered[index], signal);
+  //     }
+  //   });
+  // };
+
+  const arrayTrunc = async (
+    arr: any[],
+    n: number,
+    start: any,
+    func: (arrStr: any, signal: any) => {},
+    signal: any
+  ) => {
+    if (signal.aborted) return;
+    if (n >= arr.length) return await func(arr, signal);
     for (let index = 0; index < arr.length; index += n) {
-      if (signal.aborted) return
+      if (signal.aborted) return;
       if (index + n <= arr.length) {
-        await func(arr.slice(index, index + n), signal)
+        await func(arr.slice(index, index + n), signal);
       } else {
-        await func(arr.slice(index, arr.length), signal)
+        await func(arr.slice(index, arr.length), signal);
       }
     }
-  }
+  };
 
   const process = async (strArr: string[], signal: any) => {
-    if (signal.aborted) return
-    console.log(strArr)
-    const promiseArr: Promise<any>[] = []
+    if (signal.aborted) return;
+    console.log(strArr);
+    const promiseArr: Promise<any>[] = [];
     strArr.forEach(async (x) => {
-      return promiseArr.push(getMp3File(x, signal))
-    }
-    )
+      return promiseArr.push(getMp3File(x, signal));
+    });
     await Promise.all(promiseArr).then(async (values) => {
-      let filtered: any[] = values.filter(function (e) { return e != null; });
+      let filtered: any[] = values.filter(function (e) {
+        return e != null;
+      });
       for (let index = 0; index < filtered.length; index++) {
-        await playSound(filtered[index], signal)
+        await playSound(filtered[index], signal);
       }
-    })
-  }
+    });
+  };
 
   function objToQueryString(obj: any) {
     const keyValuePairs = [];
@@ -106,8 +183,8 @@ export function FetchData() {
     return keyValuePairs.join("&");
   }
   const [timeLeft, setTimeLeft] = useState(0);
-  const [timeLeftLife, setTimeLeftLife] = useState(5000);
-  const timeDelayApi = 5000;
+  const [timeLeftLife, setTimeLeftLife] = useState(2000);
+  const timeDelayApi = 2000;
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -125,31 +202,32 @@ export function FetchData() {
       // });
       const queryString = apiInfo.queryString
         ? objToQueryString(
-          JSON.parse(
-            apiInfo.queryString
-              .replace(/(\r\n|\n|\r)/gm, "")
-              .replace("${textsearch}", text)
+            JSON.parse(
+              apiInfo.queryString
+                .replace(/(\r\n|\n|\r)/gm, "")
+                .replace("${textsearch}", text)
+            )
           )
-        )
         : "";
-      let ix = randomIntFromInterval(200, 1000)
-      console.log(ix)
-      await delay(ix)
+      // let ix = randomIntFromInterval(200, 1000);
+      // console.log(ix);
+      // await delay(ix);
       const bodyStr = apiInfo.body
         ? objToQueryString(
-          JSON.parse(
-            apiInfo.body
-              .replace(/(\r\n|\n|\r)/gm, "")
-              .replace("${textsearch}", text)
+            JSON.parse(
+              apiInfo.body
+                .replace(/(\r\n|\n|\r)/gm, "")
+                .replace("${textsearch}", text)
+            )
           )
-        )
         : "";
       // console.log(queryString);
-      let timeNeedWait = timeDelayApi - timeLeft <= 0 ? 0 : timeDelayApi - timeLeft;
-      console.log(timeNeedWait)
-      await delay(timeNeedWait)
-      setTimeLeft(0)
-      setTimeLeftLife(0)
+      let timeNeedWait =
+        timeDelayApi - timeLeft <= 0 ? 0 : timeDelayApi - timeLeft;
+      console.log(timeNeedWait);
+      await delay(timeNeedWait);
+      setTimeLeft(0);
+      setTimeLeftLife(0);
       return fetch(`${apiInfo.url}?${queryString}`, {
         method: apiInfo.method,
         headers: {
@@ -157,41 +235,40 @@ export function FetchData() {
           "Content-Type": "application/json",
         },
         body: bodyStr,
-        signal: signal
-      }).then(async response => {
-        const json = await response.json();
-        console.log(json);
-        if (json.id !== undefined) {
-          return json.id;
-        }
-        return
+        signal: signal,
       })
-        .catch(err => console.error(err))
+        .then(async (response) => {
+          const json = await response.json();
+          console.log(json);
+          if (json.id !== undefined) {
+            return json.id;
+          }
+          return;
+        })
+        .catch((err) => console.log(err));
     } catch (error) {
       console.error(error);
     }
   };
 
   const playSound = async (id: string | Promise<any>, signal: any) => {
-    if (signal.aborted) return
-    if (sound != null) {
-      await sound.unloadAsync()
-      await sound.stopAsync()
+    if (signal.aborted) return;
+    if (sound != null && sound._loaded) {
+      await sound.stopAsync();
+      await sound.unloadAsync();
     }
-    const { sound: soundNew } = await Audio.Sound.createAsync({
-      uri: apiInfo.urlAudio + "/" + id,
-    });
-    if (soundNew != undefined) {
-      setSound(soundNew);
-      await soundNew.playAsync();
+    await sound.loadAsync(apiInfo.urlAudio + "/" + id);
+    if (sound != undefined) {
+      // setSound(soundNew);
+      await sound.playAsync();
       return new Promise<void>((resolve, reject) => {
         if (signal.aborted) return reject();
-        signal.addEventListener('abort', async () => {
-          await soundNew.unloadAsync()
-          await soundNew.stopAsync()
+        signal.addEventListener("abort", async () => {
+          await sound.stopAsync();
+          await sound.unloadAsync();
           reject();
         });
-        soundNew.setOnPlaybackStatusUpdate((playbackStatus) => {
+        sound.setOnPlaybackStatusUpdate((playbackStatus) => {
           if (playbackStatus.didJustFinish) {
             console.log("finished playing");
             resolve();
@@ -200,6 +277,16 @@ export function FetchData() {
       });
     }
     // await new Promise(f => setTimeout(f, 1000));
+  };
+
+  const pauseOrPlay = async () => {
+    if (sound != null && sound._loaded) {
+      if (sound._playing) {
+        await sound.pauseAsync();
+      } else {
+        await sound.playAsync()
+      }
+    }
   };
 
   async function next() {
@@ -218,7 +305,8 @@ export function FetchData() {
     let indexSpace = 0;
     if (subString.includes(".")) {
       indexDot = subString.lastIndexOf(".");
-    } else if (subString.includes(" ")) {
+    }
+    if (subString.includes(" ")) {
       indexSpace = subString.lastIndexOf(" ");
     }
     let indexLast = indexDot < indexSpace ? indexSpace : indexDot;
@@ -314,6 +402,7 @@ export function FetchData() {
               }}
             >
               <Button onPress={() => load()}>Load</Button>
+              <Button onPress={() => pauseOrPlay()}>Pause/Play</Button>
               <Button onPress={() => next()}>Next</Button>
             </Flex>
           </Stack>
