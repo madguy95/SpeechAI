@@ -11,10 +11,20 @@ import {
   TextArea,
   WarningOutlineIcon,
 } from "native-base";
-import { View } from "../Themed";
-import { Audio } from "expo-av";
+import { Audio, AVPlaybackStatus } from "expo-av";
 import { ReferenceDataContext } from "../share/ReferenceDataContext";
-// import Sound from "react-native-sound";
+import { randomColor } from "native-base/lib/typescript/theme/tools";
+
+function delay(delay: number) {
+  return new Promise(r => {
+    setTimeout(r, delay);
+  })
+}
+
+const randomIntFromInterval = (min: number, max: number) => {
+  // min and max included
+  return Math.floor(Math.random() * (max - min + 1) + min);
+};
 
 export function FetchData() {
   const { data } = useContext(ReferenceDataContext);
@@ -27,43 +37,63 @@ export function FetchData() {
     urlAudio: "https://freetts.com/audio",
   };
   const [info, setInfo] = React.useState("https://truyenchu.vn");
-  const [link, setLink] = React.useState(
-    "/tien-de-tro-ve/chuong-880-lai-mot-cai-tat"
-  );
-  const [nextPath, setNextPath] = React.useState(
-    "/tien-de-tro-ve/chuong-880-lai-mot-cai-tat"
-  );
+  const [link, setLink] = React.useState("/tien-de-tro-ve/chuong-880-lai-mot-cai-tat");
+  const [nextPath, setNextPath] = React.useState("/tien-de-tro-ve/chuong-880-lai-mot-cai-tat");
   const [remoteData, setRemoteData] = React.useState("No data fetched yet!");
-  const [sound, setSound] = React.useState();
+  const [sound, setSound] = React.useState<any>();
+  const [abortController, setAbort] = React.useState();
 
   async function load() {
+    let abortClone = new AbortController();
+    if (abortController != null) {
+      abortController.abort();
+    }
+    setAbort(abortClone);
     const response = await fetch(info + link);
     const text = await response.text();
     //   console.log(text);
     const $ = Cheerio.load(text);
     setRemoteData($("#chapter-c").text());
     setNextPath($("#next_chap").first().attr("href"));
-    console.log($("#next_chap").first().attr("href"));
+    // console.log($("#next_chap").first().attr("href"));
     let arrStr = new Array();
-    truncate($("#chapter-c").text(), arrStr, 70);
+    truncate($("#chapter-c").text(), arrStr, 50);
     console.log(arrStr);
-    let id = getMp3File(arrStr[0]);
-    // id.then(x => {
-    //   if (x != '') {
-    //     playSound(x);
-    //   }
-    // })
-    const run = async () => {
-      await playSound("047e78b7-7aa8-4cfa-aab6-f93e591d6278.mp3");
-      await playSound("f8cae8b7-d493-472c-9b6c-4aead5676b6a.mp3");
-    };
-    run();
-    // arrStr.forEach(x => {
-    //   // playTrack(getMp3File(x));
-    //   let id = getMp3File(x)
-    //   playSound(id);
-    //   return false
-    // });
+    // const run = async () => {
+    //   await playSound("047e78b7-7aa8-4cfa-aab6-f93e591d6278.mp3");
+    //   await playSound("f8cae8b7-d493-472c-9b6c-4aead5676b6a.mp3");
+    // };
+    // run();
+    arrayTrunc(arrStr, 2, 0, process, abortClone.signal)
+  }
+
+  const arrayTrunc = async (arr: any[], n: number, start: any, func: (arrStr: any, signal: any) => {}, signal: any) => {
+    if (signal.aborted) return
+    if (n >= arr.length) return await func(arr, signal)
+    for (let index = 0; index < arr.length; index += n) {
+      if (signal.aborted) return
+      if (index + n <= arr.length) {
+        await func(arr.slice(index, index + n), signal)
+      } else {
+        await func(arr.slice(index, arr.length), signal)
+      }
+    }
+  }
+
+  const process = async (strArr: string[], signal: any) => {
+    if (signal.aborted) return
+    console.log(strArr)
+    const promiseArr: Promise<any>[] = []
+    strArr.forEach(async (x) => {
+      return promiseArr.push(getMp3File(x, signal))
+    }
+    )
+    await Promise.all(promiseArr).then(async (values) => {
+      let filtered: any[] = values.filter(function (e) { return e != null; });
+      for (let index = 0; index < filtered.length; index++) {
+        await playSound(filtered[index], signal)
+      }
+    })
   }
 
   function objToQueryString(obj: any) {
@@ -75,8 +105,18 @@ export function FetchData() {
     }
     return keyValuePairs.join("&");
   }
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeftLife, setTimeLeftLife] = useState(5000);
+  const timeDelayApi = 5000;
 
-  const getMp3File = async (text: any) => {
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setTimeLeft((t) => t + 10);
+    }, 10);
+    return () => clearInterval(intervalId);
+  }, [timeLeftLife]);
+
+  const getMp3File = async (text: any, signal: any): Promise<any> => {
     try {
       // const queryString = objToQueryString({
       //   input_text: text,
@@ -85,66 +125,80 @@ export function FetchData() {
       // });
       const queryString = apiInfo.queryString
         ? objToQueryString(
-            JSON.parse(
-              apiInfo.queryString
-                .replace(/(\r\n|\n|\r)/gm, "")
-                .replace("${textsearch}", "")
-            )
+          JSON.parse(
+            apiInfo.queryString
+              .replace(/(\r\n|\n|\r)/gm, "")
+              .replace("${textsearch}", text)
           )
+        )
         : "";
+      let ix = randomIntFromInterval(200, 1000)
+      console.log(ix)
+      await delay(ix)
       const bodyStr = apiInfo.body
         ? objToQueryString(
-            JSON.parse(
-              apiInfo.body
-                .replace(/(\r\n|\n|\r)/gm, "")
-                .replace("${textsearch}", "")
-            )
+          JSON.parse(
+            apiInfo.body
+              .replace(/(\r\n|\n|\r)/gm, "")
+              .replace("${textsearch}", text)
           )
+        )
         : "";
-      console.log(queryString);
-      // const response = await fetch(`${apiInfo.url}?${queryString}`, {
-      //   method: apiInfo.method,
-      //   headers: {
-      //     Accept: "application/json",
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: bodyStr,
-      // });
-      // const json = await response.json();
-      // console.log(json);
-      // if (json.id !== undefined) {
-      //   return json.id;
-      // }
-      return "";
+      // console.log(queryString);
+      let timeNeedWait = timeDelayApi - timeLeft <= 0 ? 0 : timeDelayApi - timeLeft;
+      console.log(timeNeedWait)
+      await delay(timeNeedWait)
+      setTimeLeft(0)
+      setTimeLeftLife(0)
+      return fetch(`${apiInfo.url}?${queryString}`, {
+        method: apiInfo.method,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: bodyStr,
+        signal: signal
+      }).then(async response => {
+        const json = await response.json();
+        console.log(json);
+        if (json.id !== undefined) {
+          return json.id;
+        }
+        return
+      })
+        .catch(err => console.error(err))
     } catch (error) {
       console.error(error);
     }
   };
 
-  // const playTrack = (id: string | Promise<any>) => {
-  //   const track = new Sound('https://freetts.com/Home/PlayAudio/'+id, null, (e: any) => {
-  //     if (e) {
-  //       console.log('error loading track:', e)
-  //     } else {
-  //       track.play()
-  //     }
-  //   })
-  // }
-
-  const playSound = async (id: string | Promise<any>) => {
-    const { sound } = await Audio.Sound.createAsync({
+  const playSound = async (id: string | Promise<any>, signal: any) => {
+    if (signal.aborted) return
+    if (sound != null) {
+      await sound.unloadAsync()
+      await sound.stopAsync()
+    }
+    const { sound: soundNew } = await Audio.Sound.createAsync({
       uri: apiInfo.urlAudio + "/" + id,
     });
-    setSound(sound);
-    await sound.playAsync();
-    return new Promise((resolve) => {
-      sound.setOnPlaybackStatusUpdate((playbackStatus) => {
-        if (playbackStatus.didJustFinish) {
-          console.log("finished playing");
-          resolve();
-        }
+    if (soundNew != undefined) {
+      setSound(soundNew);
+      await soundNew.playAsync();
+      return new Promise<void>((resolve, reject) => {
+        if (signal.aborted) return reject();
+        signal.addEventListener('abort', async () => {
+          await soundNew.unloadAsync()
+          await soundNew.stopAsync()
+          reject();
+        });
+        soundNew.setOnPlaybackStatusUpdate((playbackStatus) => {
+          if (playbackStatus.didJustFinish) {
+            console.log("finished playing");
+            resolve();
+          }
+        });
       });
-    });
+    }
     // await new Promise(f => setTimeout(f, 1000));
   };
 
