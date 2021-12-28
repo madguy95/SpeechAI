@@ -16,28 +16,14 @@ import { ReferenceDataContext } from "../share/ReferenceDataContext";
 import { Api, ApiDefault } from "../model/api";
 import { delay, objToQueryString } from "../util";
 
-const sound = new Audio.Sound();
+const MAX_TRANSFER_TEXT_IN_TIME = 3
+const MAX_LOAD_FILE_IN_TIME = 3
+const API_DELAY_TIME = 2000 // ms
+
 export function FetchData() {
   const { data } = useContext(ReferenceDataContext);
   const [apiInfo, setApiInfo] = useState<Api>(ApiDefault);
-  useEffect(() => {
-    setApiInfo(data);
-  }, [data]);
 
-  // useEffect(() => {
-  //   sound.setOnPlaybackStatusUpdate((playbackStatus: any) => {
-  //     if (playbackStatus.isPlaying) {
-  //       setPlayStatus('isPlaying')
-  //     } else {
-  //       setPlayStatus('notPlaying')
-  //     }
-  //   }
-  //   )
-  // }, [])
-  // const api = {
-  //   url: "https://freetts.com/Home/PlayAudio",
-  //   urlAudio: "https://freetts.com/audio",
-  // };
   const [info, setInfo] = React.useState("https://truyenchu.vn");
   const [link, setLink] = React.useState("/tien-de-tro-ve/chuong-880-lai-mot-cai-tat");
   const [nextPath, setNextPath] = React.useState("");
@@ -48,68 +34,48 @@ export function FetchData() {
   const [queueString, setQueueStr] = React.useState<any[]>([]);
 
   // luong text to speech
-  const [flagIdRunning, setFlagId] = React.useState(false);
+  const [flagId, setFlagId] = React.useState(false); // boolean processing text in queue text
 
   // luong sound
+  const [flagQueue, setFlagQueue] = React.useState(false); // boolean processing sound in queue id
   const [isPlay, setPlay] = React.useState(false);
-  const [playStatus, setPlayStatus] = React.useState('STOP');
+  const [canPlay, setCanPlay] = React.useState(false); // play or pause
+  const [playStatus, setPlayStatus] = React.useState<any>({}); // status of current sound
 
-  const [canPlay, setCanPlay] = React.useState(false);
   // config api delay
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [timeLeftLife, setTimeLeftLife] = useState(2000);
-  const timeDelayApi = 2000;
+  const [timeLeft, setTimeLeft] = useState(0); // time ran
+  const [timeLeftLife, setTimeLeftLife] = useState(API_DELAY_TIME); // timer running
+  const timeDelayApi = API_DELAY_TIME;
 
-  async function resetState() {
+  //sound
+  const [sound, setSound] = React.useState<any>(); // current sound active
+  const [soundQueue, setSoundQueue] = React.useState<any[]>([]); // list sound in queue
+
+  // to disable button
+  const [isLoading, setIsLoad] = useState(false);
+
+  useEffect(() => {
+    setApiInfo(data);
+  }, [data]);
+
+  function resetState() {
     if (abortController != null && !abortController.signal.aborted) {
       abortController.abort()
-      setAbort(new AbortController())
     }
-    if (sound != null && sound._loaded) {
-      await sound.stopAsync()
-      await sound.unloadAsync()
-    }
+    setAbort(new AbortController())
     setCanPlay(false)
     setPlay(false);
     setFlagId(false);
+    setFlagQueue(false);
     setQueueStr([]);
     setQueueId([]);
-  }
-
-  async function load(linkCurrent?: string) {
-    linkCurrent = linkCurrent != null ? linkCurrent : link;
-    if (linkCurrent == link && queueString.length != 0) {
-      return
-    }
-    // let abortClone = new AbortController();
-    // if (abortController != null) {
-    //   abortController.abort();
-    // }
-    // setAbort(abortClone);
-    const response = await fetch(info + linkCurrent);
-    const text = await response.text();
-    //   console.log(text);
-    const $ = Cheerio.load(text);
-    setRemoteData($("#chapter-c").text());
-    const nextLink = $("#next_chap").first().attr("href")?.toString();
-    setNextPath(nextLink != null ? nextLink : '');
-    // console.log($("#next_chap").first().attr("href"));
-    let arrStr = new Array();
-    truncate($("#chapter-c").text(), arrStr, 100);
-    console.log(arrStr);
-    // const run = async () => {
-    //   await playSound("047e78b7-7aa8-4cfa-aab6-f93e591d6278.mp3");
-    //   await playSound("f8cae8b7-d493-472c-9b6c-4aead5676b6a.mp3");
-    // };
-    // run();
-    // arrayTrunc(arrStr, 2, 0, process, abortClone.signal);
-    setQueueStr(arrStr);
+    setSound({});
   }
 
   useEffect(() => {
     if (
-      !flagIdRunning &&
-      queueId.length < 2 &&
+      !flagId &&
+      queueId.length < MAX_TRANSFER_TEXT_IN_TIME &&
       queueString.length > 0 &&
       abortController != null
     ) {
@@ -117,8 +83,18 @@ export function FetchData() {
       const strClone = [...queueString];
       const str = strClone.shift();
       setQueueStr(strClone);
+      // new Promise<void>((resolve) => {
+      //   // setTimeout(() => {
+      //   setFlagId(false);
+      //   setQueueId((queueIdPrev) => {
+      //     const queueClone = [...queueIdPrev];
+      //     queueClone.push('7478376f-fa74-4a57-89f9-620654cee2d5.mp3');
+      //     return queueClone;
+      //   });
+      //   resolve()
+      //   // }, 500)
+      // })
       getMp3File(str, abortController.signal).then((id) => {
-        setFlagId(false);
         if (id != null) {
           console.log("ID sound %s by text: [ %s ]", id, str);
           setQueueId((queueIdPrev) => {
@@ -127,78 +103,32 @@ export function FetchData() {
             return queueClone;
           });
         }
+        setFlagId(false);
       });
     }
-  }, [queueId, queueString, abortController, flagIdRunning]);
+  }, [queueId, queueString, abortController, flagId]);
 
   useEffect(() => {
-    if (!isPlay && canPlay && queueId.length > 0 && abortController != null) {
-      setPlay(true);
+    if (!flagQueue && canPlay && queueId.length > 0 && soundQueue.length < MAX_LOAD_FILE_IN_TIME && abortController != null) {
+      setFlagQueue(true)
       const idClone = [...queueId];
       const id = idClone.shift();
       console.log("Go play sound %s", id);
       setQueueId(idClone);
-      playSound(id, abortController.signal).then(() => {
-        setPlay(false);
-      });
+      playSound(id, abortController.signal)
     }
-  }, [queueId, abortController, isPlay, canPlay]);
+  }, [queueId, abortController, canPlay, soundQueue]);
 
-  // const processGetId = async (strArr: string[], signal: any) => {
-  //   if (signal.aborted) return;
-  //   console.log(strArr);
-  //   for (let index = 0; index < strArr.length; index++) {
-  //     queueId.push();
-  //   }
-  //   const promiseArr: Promise<any>[] = [];
-  //   strArr.forEach(async (x) => {
-  //     await push();
-  //   });
-  //   await Promise.all(promiseArr).then(async (values) => {
-  //     let filtered: any[] = values.filter(function (e) {
-  //       return e != null;
-  //     });
-  //     for (let index = 0; index < filtered.length; index++) {
-  //       await playSound(filtered[index], signal);
-  //     }
-  //   });
-  // };
-
-  // const arrayTrunc = async (
-  //   arr: any[],
-  //   n: number,
-  //   start: any,
-  //   func: (arrStr: any, signal: any) => {},
-  //   signal: any
-  // ) => {
-  //   if (signal.aborted) return;
-  //   if (n >= arr.length) return await func(arr, signal);
-  //   for (let index = 0; index < arr.length; index += n) {
-  //     if (signal.aborted) return;
-  //     if (index + n <= arr.length) {
-  //       await func(arr.slice(index, index + n), signal);
-  //     } else {
-  //       await func(arr.slice(index, arr.length), signal);
-  //     }
-  //   }
-  // };
-
-  // const process = async (strArr: string[], signal: any) => {
-  //   if (signal.aborted) return;
-  //   console.log(strArr);
-  //   const promiseArr: Promise<any>[] = [];
-  //   strArr.forEach(async (x) => {
-  //     return promiseArr.push(getMp3File(x, signal));
-  //   });
-  //   await Promise.all(promiseArr).then(async (values) => {
-  //     let filtered: any[] = values.filter(function (e) {
-  //       return e != null;
-  //     });
-  //     for (let index = 0; index < filtered.length; index++) {
-  //       await playSound(filtered[index], signal);
-  //     }
-  //   });
-  // };
+  useEffect(() => {
+    if (!isPlay && soundQueue?.length > 0 && canPlay) {
+      setPlay(true);
+      const queueClone = [...soundQueue]
+      let soundCur = queueClone.shift()
+      setSoundQueue(queueClone)
+      setSound(soundCur)
+      playS(soundCur)
+    }
+  }, [isPlay, soundQueue, canPlay, abortController, flagQueue])
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -206,6 +136,13 @@ export function FetchData() {
     }, 10);
     return () => clearInterval(intervalId);
   }, [timeLeftLife]);
+
+  const unLoadSound = async (soundCancel: any) => {
+    if (soundCancel != null) {
+      await soundCancel.stopAsync();
+      await soundCancel.unloadAsync();
+    }
+  }
 
   const getMp3File = async (text: any, signal: any): Promise<any> => {
     try {
@@ -218,9 +155,6 @@ export function FetchData() {
           )
         )
         : "";
-      // let ix = randomIntFromInterval(200, 1000);
-      // console.log(ix);
-      // await delay(ix);
       const bodyStr = apiInfo.body
         ? objToQueryString(
           JSON.parse(
@@ -230,7 +164,6 @@ export function FetchData() {
           )
         )
         : "";
-      // console.log(queryString);
       let timeNeedWait =
         timeDelayApi - timeLeft <= 0 ? 0 : timeDelayApi - timeLeft;
       console.log("Waiting %s ms before call api", timeNeedWait);
@@ -248,7 +181,7 @@ export function FetchData() {
       })
         .then(async (response) => {
           const json = await response.json();
-          // console.log(json);
+          console.log(json)
           if (json.id !== undefined) {
             return json.id;
           }
@@ -260,56 +193,81 @@ export function FetchData() {
     }
   };
 
+  const playS = async (soundCurrent: any) => {
+    console.log("Go play sound %s");
+    await soundCurrent.playAsync();
+    new Promise<void>((resolve, reject) => {
+      if (abortController.signal.aborted) return reject();
+      abortController.signal.addEventListener("abort", async () => {
+        if (reject) reject('abort')
+        unLoadSound(soundCurrent)
+        setPlay(false);
+      });
+      soundCurrent.setOnPlaybackStatusUpdate((playbackStatus: any) => {
+        setPlayStatus(playbackStatus)
+        if (playbackStatus.didJustFinish) {
+          console.log("finished playing");
+          setPlay(false);
+          resolve();
+        }
+      });
+    });
+  }
+
+  async function load(linkCurrent?: string) {
+    linkCurrent = linkCurrent != null ? linkCurrent : link;
+    if (linkCurrent == link && queueString.length != 0) {
+      return
+    }
+    setIsLoad(true)
+    const response = await fetch(info + linkCurrent);
+    const text = await response.text();
+    const $ = Cheerio.load(text);
+    setRemoteData($("#chapter-c").text());
+    const nextLink = $("#next_chap").first().attr("href")?.toString();
+    setNextPath(nextLink != null ? nextLink : '');
+    let arrStr = new Array();
+    truncate($("#chapter-c").text(), arrStr, 20);
+    console.log(arrStr);
+    setQueueStr(arrStr);
+    setIsLoad(false)
+  }
+
   const playSound = async (id: string | Promise<any>, signal: any) => {
     if (signal.aborted) return;
-    if (sound != null && sound._loaded) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
-    }
-    await sound.loadAsync({ uri: apiInfo.urlAudio + "/" + id });
-    if (sound != undefined) {
-      // setSound(soundNew);
-      await sound.playAsync();
-      return new Promise<void>((resolve, reject) => {
-        if (signal.aborted) return reject();
-        signal.addEventListener("abort", async () => {
-          await sound.stopAsync();
-          await sound.unloadAsync();
-          reject();
-        });
-        sound.setOnPlaybackStatusUpdate((playbackStatus: any) => {
-          if (playbackStatus.isPlaying) {
-            setPlayStatus('isPlaying')
-          } else {
-            setPlayStatus('notPlaying')
-          }
-          if (playbackStatus.didJustFinish) {
-            console.log("finished playing");
-            resolve();
-          }
-        });
-      });
-    }
-    // await new Promise(f => setTimeout(f, 1000));
+    let { sound: soundClone } = await Audio.Sound.createAsync({ uri: apiInfo.urlAudio + "/" + id });
+    setSoundQueue((queue) => {
+      const clone = [...queue]
+      clone.push(soundClone)
+      return clone
+    })
+    setFlagQueue(false)
   };
 
+  const pauseOrPlaySync = () => {
+    setIsLoad((prev) => !prev)
+    pauseOrPlay()
+  }
+
   const pauseOrPlay = async () => {
-    setCanPlay((prev) => !prev)
-    if (playStatus == 'isPlaying') {
-      if (sound != null && sound._loaded) {
-        await sound.pauseAsync()
+    if (sound != null && sound._loaded) {
+      if (playStatus.isPlaying) {
+        const status = await sound.pauseAsync()
+        setPlayStatus(status)
       }
-    } else {
-      if (sound != null && sound._loaded) {
-        await sound.playAsync()
+      else {
+        const status = await sound.playAsync()
+        setPlayStatus(status)
       }
     }
+    setCanPlay((prev) => !prev)
+    setIsLoad((prev) => !prev)
   };
 
   function next() {
+    resetState();
     setLink(nextPath);
     load(nextPath);
-    resetState();
   }
 
   function truncate(str: string, arrStr: any[], n: number): any {
@@ -419,9 +377,9 @@ export function FetchData() {
                 color: "coolGray.800",
               }}
             >
-              <Button onPress={() => load()}>Load</Button>
-              <Button onPress={() => next()}>Next</Button>
-              <Button onPress={() => pauseOrPlay()}>{canPlay ? "Pause" : "Play"}</Button>
+              <Button isDisabled={isLoading || canPlay} onPress={() => load()}>Load</Button>
+              <Button isDisabled={isLoading || canPlay} onPress={() => next()}>Next</Button>
+              <Button isDisabled={isLoading} onPress={() => pauseOrPlaySync()}>{canPlay ? "Pause" : "Play"}</Button>
             </Flex>
           </Stack>
         </FormControl>
