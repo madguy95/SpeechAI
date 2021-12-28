@@ -3,11 +3,8 @@ import {
   FormControl,
   Stack,
   Input,
-  WarningOutlineIcon,
   Flex,
   TextArea,
-  Select,
-  CheckIcon,
   Button,
   Radio,
   ScrollView,
@@ -19,60 +16,46 @@ import {
   Icon,
 } from "native-base";
 import React, { useContext, useEffect } from "react";
-import { Feather, Entypo } from "@expo/vector-icons";
-import { View } from "../Themed";
+import { Entypo } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ReferenceDataContext } from "../share/ReferenceDataContext";
+import { Api, ApiDefault } from "../model/api";
+import { randomIntFromInterval } from "../util";
 
 export function ApiRaw() {
   const { setData } = useContext(ReferenceDataContext);
-  const [config, setConfig] = React.useState({});
+  const [config, setConfig] = React.useState<any>({});
   const [name, setName] = React.useState("");
   const [idSelect, setIdSelect] = React.useState(0);
-  const [api, setApi] = React.useState({
-    id: 0,
-    url: "https://freetts.com/Home/PlayAudio",
-    urlAudio: "https://freetts.com/audio",
-    queryString: JSON.stringify({
-      Language: "vi-VN",
-      Voice: "vi-VN-Standard-A",
-      TextMessage: "${textsearch}",
-      type: 0,
-    }),
-    body: "",
-    method: "POST",
-  });
+  const [api, setApi] = React.useState<Api>(ApiDefault);
   useEffect(() => {
     loadData();
   }, []);
-  const randomIntFromInterval = (min: number, max: number) => {
-    // min and max included
-    return Math.floor(Math.random() * (max - min + 1) + min);
-  };
 
   const storeData = async () => {
     try {
-      const data: object = { ...config };
+      const configClone: any = { ...config };
       let i: number = api.id;
-      while (data[i] != undefined) {
+      while (configClone[i] != undefined) {
         i = randomIntFromInterval(1, 100000);
       }
-      data[i] = { ...api, name, id: i };
-      setConfig(data);
-      setApi(data[i]);
-      setData(data[i]);
+      configClone[i] = { ...api, name, id: i };
+      setConfig(configClone);
+      setApi(configClone[i]);
+      setData(configClone[i]);
       setIdSelect(i);
-      await AsyncStorage.setItem("configs", JSON.stringify(data));
+      await AsyncStorage.setItem("configs", JSON.stringify(configClone));
       await AsyncStorage.setItem("active", i.toString());
     } catch (e) {
       // saving error
+      console.log('saving error')
     }
   };
 
   const loadData = async () => {
     try {
       const idStr = await AsyncStorage.getItem("active");
-      if (idStr != undefined && !isNaN(idStr)) {
+      if (idStr != undefined && !isNaN(+idStr)) {
         let id = Number(idStr);
         const jsonValue = await AsyncStorage.getItem("configs");
         let jsonObj = jsonValue != null ? JSON.parse(jsonValue) : {};
@@ -85,15 +68,9 @@ export function ApiRaw() {
       }
     } catch (e) {
       // saving error
+      console.log('saving error')
     }
   };
-
-  // const handleStatusChange = (itemI) => {
-  //   config[itemI].isCompleted =
-  //     config[itemI].isCompleted == undefined || !config[itemI].isCompleted
-  //       ? true
-  //       : false;
-  // };
 
   const loadConfig = async () => {
     if (config && config[idSelect]) {
@@ -105,10 +82,10 @@ export function ApiRaw() {
     }
   };
 
-  const handleDelete = async (itemI) => {
+  const handleDelete = async (key: number) => {
     if (config != undefined) {
-      const configClone = { ...config };
-      delete configClone[itemI];
+      const configClone: any = { ...config };
+      delete configClone[key];
       setConfig(configClone);
       await AsyncStorage.setItem("configs", JSON.stringify(configClone));
     }
@@ -120,7 +97,7 @@ export function ApiRaw() {
         width: "100%",
         height: "100%",
         overflow: "hidden",
-        overflowY: "scroll",
+        // overflowY: "scroll",
       }}
       nestedScrollEnabled={true}
     >
@@ -149,23 +126,6 @@ export function ApiRaw() {
           </Stack>
         </FormControl>
         <FormControl isRequired isInvalid>
-          {/* <Select
-              selectedValue={api.method}
-              minWidth="200"
-              accessibilityLabel="Choose Service"
-              placeholder="Choose Service"
-              _selectedItem={{
-                bg: "teal.600",
-                endIcon: <CheckIcon key={1} size="5" />,
-              }}
-              mt={1}
-              onValueChange={(itemValue) =>
-                setApi({ ...api, method: itemValue })
-              }
-            >
-              <Select.Item key={1} label="Method POST" value="POST" />
-              <Select.Item key={2} label="Method GET" value="GET" />
-            </Select> */}
           <Stack mx="4">
             <Radio.Group
               name="myRadioGroup"
@@ -254,12 +214,12 @@ export function ApiRaw() {
               >
                 <Text
                   mx="2"
-                  strikeThrough={config[item].isCompleted}
+                  strikeThrough={config[item].id == idSelect}
                   _light={{
-                    color: item.isCompleted ? "gray.400" : "coolGray.800",
+                    color: config[item].id == idSelect ? "gray.400" : "coolGray.800",
                   }}
                   _dark={{
-                    color: item.isCompleted ? "gray.400" : "coolGray.50",
+                    color: config[item].id == idSelect ? "gray.400" : "coolGray.50",
                   }}
                 >
                   {config[item].name}

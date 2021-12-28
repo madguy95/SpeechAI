@@ -19,7 +19,7 @@
     "@react-navigation/bottom-tabs": "^6.0.5",
     "@react-navigation/native": "^6.0.2",
     "@react-navigation/native-stack": "^6.1.0",
-    "cheerio-without-node-native": "^0.20.2",
+    "cheerio": "^1.0.0-rc.10",
     "expo": "~44.0.0",
     "expo-asset": "~8.4.4",
     "expo-av": "~10.2.0",
