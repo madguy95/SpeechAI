@@ -16,16 +16,22 @@ import { ReferenceDataContext } from "../share/ReferenceDataContext";
 import { Api, ApiDefault } from "../model/api";
 import { delay, objToQueryString } from "../util";
 
+const MAX_LENGTH_CHARACTER_TRUNC = 200
 const MAX_TRANSFER_TEXT_IN_TIME = 3
 const MAX_LOAD_FILE_IN_TIME = 3
 const API_DELAY_TIME = 2000 // ms
+const DEFAULT_PAGE = 'https://metruyenchu.com/'
+const DEFAULT_CHAP = '/truyen/hon-chu/chuong-4'
+
+const CSS_CONTENT_ID = '#js-read__content';
+const CSS_NEXT_ID = '#nextChapter';
 
 export function FetchData() {
   const { data } = useContext(ReferenceDataContext);
   const [apiInfo, setApiInfo] = useState<Api>(ApiDefault);
 
-  const [info, setInfo] = React.useState("https://truyenchu.vn");
-  const [link, setLink] = React.useState("/tien-de-tro-ve/chuong-880-lai-mot-cai-tat");
+  const [info, setInfo] = React.useState(DEFAULT_PAGE);
+  const [link, setLink] = React.useState(DEFAULT_CHAP);
   const [nextPath, setNextPath] = React.useState("");
   const [remoteData, setRemoteData] = React.useState("No data fetched yet!");
   // const [sound, setSound] = React.useState<any>();
@@ -151,7 +157,9 @@ export function FetchData() {
           JSON.parse(
             apiInfo.queryString
               .replace(/(\r\n|\n|\r)/gm, "")
-              .replace("${textsearch}", text)
+              .replace("${textsearch}", text
+               //.replaceAll(",","")
+              .replaceAll("\"",""))
           )
         )
         : "";
@@ -223,11 +231,11 @@ export function FetchData() {
     const response = await fetch(info + linkCurrent);
     const text = await response.text();
     const $ = Cheerio.load(text);
-    setRemoteData($("#chapter-c").text());
-    const nextLink = $("#next_chap").first().attr("href")?.toString();
+    setRemoteData($(CSS_CONTENT_ID).text());
+    const nextLink = $(CSS_NEXT_ID).first().attr("href")?.toString();
     setNextPath(nextLink != null ? nextLink : '');
     let arrStr = new Array();
-    truncate($("#chapter-c").text(), arrStr, 20);
+    truncate($(CSS_CONTENT_ID).text(), arrStr, MAX_LENGTH_CHARACTER_TRUNC);
     console.log(arrStr);
     setQueueStr(arrStr);
     setIsLoad(false)
@@ -285,7 +293,7 @@ export function FetchData() {
     if (subString.includes(" ")) {
       indexSpace = subString.lastIndexOf(" ");
     }
-    let indexLast = indexDot < indexSpace ? indexSpace : indexDot;
+    let indexLast = indexDot ? indexDot : indexSpace;
     if (indexLast > 0) {
       subString = subString.substring(0, indexLast);
     }
