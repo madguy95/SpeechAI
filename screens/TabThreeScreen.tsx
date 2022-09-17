@@ -8,14 +8,17 @@ import EditScreenInfo from '../components/EditScreenInfo';
 import { Text, View } from '../components/Themed';
 import React, { useContext, useEffect, useState } from "react";
 import { useRef } from 'react';
-import { truncate } from '../components/util';
+import { loadHtml, truncate } from '../components/util';
+import { load } from 'cheerio';
 
-const DEFAULT_PAGE = "https://www.google.com/";
+const DEFAULT_PAGE = "https://reactnative.dev/";
 export default function TabTwoScreen() {
+  const [inputURL, setInputURl] = React.useState(DEFAULT_PAGE);
   const [info, setInfo] = React.useState(DEFAULT_PAGE);
   const [selector, setSelector] = React.useState('#js-read__content');
   const gridIframe = useRef();
   const [iframeItem, setIframeItem] = React.useState<any>();
+  const [html, setHtml] = React.useState<any>('<p>Here I am</p>');
   const handleIframe = () => {
     if (gridIframe) {
       setIframeItem(gridIframe?.current);
@@ -37,8 +40,9 @@ export default function TabTwoScreen() {
           <FormControl.Label>Trang web url</FormControl.Label>
           <Input
             type="text"
-            value={info}
-            onChangeText={(value) => setInfo(value)}
+            value={inputURL}
+            onChangeText={(inputURL) => setInputURl(inputURL)}
+            onSubmitEditing={(event) => {setInfo(inputURL) ; setHtml(loadHtml(inputURL))}}
             placeholder="text"
           />
           <FormControl.HelperText>First link</FormControl.HelperText>
@@ -52,7 +56,7 @@ export default function TabTwoScreen() {
       {Platform.OS === "web" ? (
         <iframe id="iframe" ref={gridIframe} onLoad={handleIframe} src={info} height={'100%'} width={'100%'} />
       ) : (
-        <View style={{ flex: 1 }}>
+        <View style={styles.container}>
           <WebView
             source={{ uri: info }}
             style={{ marginTop: 22, flex: 1 }}

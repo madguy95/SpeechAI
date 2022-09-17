@@ -46,3 +46,12 @@ export function truncate(str: string, arrStr: any[], n: number): any {
     );
     return truncate(str.substring(subString.length, str.length - 1), arrStr, n);
   }
+
+  export async function loadHtml(linkCurrent?: string) {
+    // if (!linkCurrent) {
+    //   return
+    // }
+    // const response = await fetch(linkCurrent);
+    // const text = await response.text();
+    // return text;
+  }
