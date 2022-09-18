@@ -22,7 +22,7 @@
     "cheerio": "1.0.0-rc.10",
     "expo": "~44.0.0",
     "expo-asset": "~8.4.4",
-    "expo-av": "~10.2.0",
+    "expo-av": "~11.2.3",
     "expo-constants": "~13.0.0",
     "expo-font": "~10.0.4",
     "expo-linking": "~3.0.0",
@@ -38,7 +38,8 @@
     "react-native-sound": "^0.11.1",
     "react-native-svg": "12.1.1",
     "react-native-web": "0.17.1",
-    "react-native-webview": "11.15.0"
+    "react-native-webview": "11.15.0",
+    "@react-native-community/slider": "4.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
