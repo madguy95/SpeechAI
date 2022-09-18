@@ -1,3 +1,5 @@
+import * as Cheerio from 'cheerio';
+
 export const randomIntFromInterval = (min: number, max: number) => {
     // min and max included
     return Math.floor(Math.random() * (max - min + 1) + min);
@@ -47,11 +49,9 @@ export function truncate(str: string, arrStr: any[], n: number): any {
     return truncate(str.substring(subString.length, str.length - 1), arrStr, n);
   }
 
-  export async function loadHtml(linkCurrent?: string) {
-    // if (!linkCurrent) {
-    //   return
-    // }
-    // const response = await fetch(linkCurrent);
-    // const text = await response.text();
-    // return text;
+  export function getContentInHtml(html, selector): any {
+    if(html) {
+      const $ = Cheerio.load(html);
+      return $(selector).text() || "";
+    }
   }
