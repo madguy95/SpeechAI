@@ -172,8 +172,6 @@ export default class AppPlay extends React.Component {
       throughEarpiece: false,
       playList: PLAYLIST
     };
-    // this.data = contextType.data;
-    // console.log(data)
   }
 
   componentDidMount() {
@@ -194,19 +192,15 @@ export default class AppPlay extends React.Component {
       this.setState({ fontLoaded: true });
     })();
     this._loadNewPlaybackInstance(false);
-    console.log(this.context?.data?.content ? 'DIDMOUNT' : '');
-  }
-
-  componentWillUpdate(nextProps: Readonly<{}>, nextState: Readonly<{}>, nextContext: any): void {
-    console.log(this.context?.data?.content ? 'WillUpdate' : '');
+    // console.log(this.context?.data?.content ? 'DIDMOUNT' : '');
   }
 
   componentDidUpdate(prevProps: Readonly<{}>, prevState: Readonly<{}>, snapshot?: any): void {
-    console.log(this.context?.data?.content ? 'DidUpdate' : '');
+    // console.log(this.context?.data?.content ? 'DidUpdate' : '');
     if (this.context.data.content) {
       const arrStr = new Array();
       truncate(this.context.data.content, arrStr, 200);
-      console.log(arrStr)
+      // console.log(arrStr)
       const arrPlay = new Array();
       // arrPlay.push(...PLAYLIST);
       arrStr.forEach((item) => {
@@ -529,7 +523,7 @@ export default class AppPlay extends React.Component {
   }
 
   render() {
-    console.log(this.context?.data?.content ? 'render' : '');
+    // console.log(this.context?.data?.content ? 'render' : '');
     return !this.state.fontLoaded ? (
       <View style={styles.emptyContainer} />
     ) : (
