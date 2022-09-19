@@ -20,12 +20,14 @@ import { getContentInHtml, truncate } from "../components/util";
 import { load } from "cheerio";
 import { loadHtml } from "../components/service/APIService";
 import { AudioTrack } from "../components/data/AudioTrack";
+import { ReferenceDataContext } from "../components/share/ReferenceDataContext";
 
 // const DEFAULT_PAGE = "https://reactjs.org/";
 const DEFAULT_PAGE = "https://truyenfull.vn/than-dao-dan-ton-606028/chuong-1/";
 // const CSS_SELECTOR = "#js-read__content";
 const CSS_SELECTOR = "#chapter-c";
 export default function TabTwoScreen() {
+  const {data, setData} = useContext(ReferenceDataContext)
   const [inputURL, setInputURl] = React.useState(DEFAULT_PAGE);
   // const [selector, setSelector] = React.useState();
 
@@ -59,7 +61,9 @@ export default function TabTwoScreen() {
   async function load() {
     if (inputURL && selector) {
       loadHtml(inputURL).then((html) => {
-        setRemoteData(getContentInHtml(html, selector));
+        const content = getContentInHtml(html, selector);
+        setRemoteData(content);
+        setData({...data, content: content})
       });
     }
   }
@@ -99,7 +103,7 @@ export default function TabTwoScreen() {
               }}
             >
               <Button onPress={() => load()}>Load</Button>
-              <AudioTrack content={remoteData} />
+              {/* <AudioTrack content={remoteData} /> */}
               {/* <Button isDisabled={isLoading || canPlay} onPress={() => next()}>Next</Button>
               <Button isDisabled={isLoading} onPress={() => pauseOrPlaySync()}>{canPlay ? "Pause" : "Play"}</Button> */}
             </Flex>

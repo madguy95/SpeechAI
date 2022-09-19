@@ -23,6 +23,7 @@ import * as Font from "expo-font";
 import Slider from "@react-native-community/slider";
 
 import { MaterialIcons } from "@expo/vector-icons";
+import ListItemPlay from "../components/data/ListItemPlay";
 
 class Icon {
   constructor(module, width, height) {
@@ -47,21 +48,21 @@ const PLAYLIST = [
     "https://s3.amazonaws.com/exp-us-standard/audio/playlist-example/Comfort_Fit_-_03_-_Sorry.mp3",
     false
   ),
-  new PlaylistItem(
-    "Big Buck Bunny",
-    "http://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-    true
-  ),
+  // new PlaylistItem(
+  //   "Big Buck Bunny",
+  //   "http://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  //   true
+  // ),
   new PlaylistItem(
     "Mildred Bailey – “All Of Me”",
     "https://ia800304.us.archive.org/34/items/PaulWhitemanwithMildredBailey/PaulWhitemanwithMildredBailey-AllofMe.mp3",
     false
   ),
-  new PlaylistItem(
-    "Popeye - I don't scare",
-    "https://ia800501.us.archive.org/11/items/popeye_i_dont_scare/popeye_i_dont_scare_512kb.mp4",
-    true
-  ),
+  // new PlaylistItem(
+  //   "Popeye - I don't scare",
+  //   "https://ia800501.us.archive.org/11/items/popeye_i_dont_scare/popeye_i_dont_scare_512kb.mp4",
+  //   true
+  // ),
   new PlaylistItem(
     "Podington Bear - “Rubber Robot”",
     "https://s3.amazonaws.com/exp-us-standard/audio/playlist-example/Podington_Bear_-_Rubber_Robot.mp3",
@@ -137,8 +138,11 @@ const LOADING_STRING = "... loading ...";
 const BUFFERING_STRING = "...buffering...";
 const RATE_SCALE = 3.0;
 const VIDEO_CONTAINER_HEIGHT = (DEVICE_HEIGHT * 2.0) / 5.0 - FONT_SIZE * 2;
-
+import { ReferenceDataContext } from '../components/share/ReferenceDataContext'
+import { truncate } from "../components/util";
 export default class AppPlay extends React.Component {
+  static contextType = ReferenceDataContext;
+
   constructor(props) {
     super(props);
     this.index = 0;
@@ -165,8 +169,11 @@ export default class AppPlay extends React.Component {
       poster: false,
       useNativeControls: false,
       fullscreen: false,
-      throughEarpiece: false
+      throughEarpiece: false,
+      playList: PLAYLIST
     };
+    // this.data = contextType.data;
+    // console.log(data)
   }
 
   componentDidMount() {
@@ -186,6 +193,31 @@ export default class AppPlay extends React.Component {
       });
       this.setState({ fontLoaded: true });
     })();
+    this._loadNewPlaybackInstance(false);
+    console.log(this.context?.data?.content ? 'DIDMOUNT' : '');
+  }
+
+  componentWillUpdate(nextProps: Readonly<{}>, nextState: Readonly<{}>, nextContext: any): void {
+    console.log(this.context?.data?.content ? 'WillUpdate' : '');
+  }
+
+  componentDidUpdate(prevProps: Readonly<{}>, prevState: Readonly<{}>, snapshot?: any): void {
+    console.log(this.context?.data?.content ? 'DidUpdate' : '');
+    if (this.context.data.content) {
+      const arrStr = new Array();
+      truncate(this.context.data.content, arrStr, 200);
+      console.log(arrStr)
+      const arrPlay = new Array();
+      // arrPlay.push(...PLAYLIST);
+      arrStr.forEach((item) => {
+        arrPlay.push(new PlaylistItem(item,
+        "https://s3.amazonaws.com/exp-us-standard/audio/playlist-example/Comfort_Fit_-_03_-_Sorry.mp3",
+        false))
+      })
+      if (JSON.stringify(arrPlay) != JSON.stringify(this.state.playList)) {
+        this.setState({ playList: arrPlay})
+      }
+    }
   }
 
   async _loadNewPlaybackInstance(playing) {
@@ -195,7 +227,7 @@ export default class AppPlay extends React.Component {
       this.playbackInstance = null;
     }
 
-    const source = { uri: PLAYLIST[this.index].uri };
+    const source = { uri: this.state.playList[this.index].uri };
     const initialStatus = {
       shouldPlay: playing,
       rate: this.state.rate,
@@ -207,7 +239,7 @@ export default class AppPlay extends React.Component {
       // androidImplementation: 'MediaPlayer',
     };
 
-    if (PLAYLIST[this.index].isVideo) {
+    if (this.state.playList[this.index].isVideo) {
       await this._video.loadAsync(source, initialStatus);
       // this._video.onPlaybackStatusUpdate(this._onPlaybackStatusUpdate);
       this.playbackInstance = this._video;
@@ -241,8 +273,8 @@ export default class AppPlay extends React.Component {
       });
     } else {
       this.setState({
-        playbackInstanceName: PLAYLIST[this.index].name,
-        showVideo: PLAYLIST[this.index].isVideo,
+        playbackInstanceName: this.state.playList[this.index].name,
+        showVideo: this.state.playList[this.index].isVideo,
         isLoading: false
       });
     }
@@ -312,7 +344,7 @@ export default class AppPlay extends React.Component {
 
   _advanceIndex(forward) {
     this.index =
-      (this.index + (forward ? 1 : PLAYLIST.length - 1)) % PLAYLIST.length;
+      (this.index + (forward ? 1 : this.state.playList.length - 1)) % this.state.playList.length;
   }
 
   async _updatePlaybackInstanceForIndex(playing) {
@@ -489,7 +521,15 @@ export default class AppPlay extends React.Component {
     );
   };
 
+  _onChangeSelect = (id) => {
+    if (this.playbackInstance != null) {
+      this.index = id;
+      this._updatePlaybackInstanceForIndex(this.state.shouldPlay);
+    }
+  }
+
   render() {
+    console.log(this.context?.data?.content ? 'render' : '');
     return !this.state.fontLoaded ? (
       <View style={styles.emptyContainer} />
     ) : (
@@ -502,7 +542,11 @@ export default class AppPlay extends React.Component {
         </View>
         <View style={styles.space} />
         <View style={styles.videoContainer}>
-          <Video
+          <View style={{
+                width: this.state.videoWidth,
+                height: this.state.videoHeight
+              }}>
+          {/* <Video
             ref={this._mountVideo}
             style={[
               styles.video,
@@ -520,7 +564,9 @@ export default class AppPlay extends React.Component {
             onFullscreenUpdate={this._onFullscreenUpdate}
             onReadyForDisplay={this._onReadyForDisplay}
             useNativeControls={this.state.useNativeControls}
-          />
+          /> */}
+          <ListItemPlay data={this.state.playList} onChange={this._onChangeSelect} idSelected={this.index}></ListItemPlay>
+          </View>
         </View>
         <View
           style={[
