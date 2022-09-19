@@ -129,6 +129,7 @@ const LOOPING_TYPE_ONE = 1;
 const LOOPING_TYPE_ICONS = { 0: ICON_LOOP_ALL_BUTTON, 1: ICON_LOOP_ONE_BUTTON };
 
 const { width: DEVICE_WIDTH, height: DEVICE_HEIGHT } = Dimensions.get("window");
+console.log(DEVICE_WIDTH, DEVICE_HEIGHT)
 const BACKGROUND_COLOR = "#FFF8ED";
 const DISABLED_OPACITY = 0.5;
 const FONT_SIZE = 14;
@@ -181,7 +182,7 @@ export default class AppPlay extends React.Component {
     (async () => {
       await Font.loadAsync({
         ...MaterialIcons.font,
-        "cutive-mono-regular": require("../assets/fonts/CutiveMono-Regular.ttf")
+        "cutive-mono-regular": require("../assets/fonts/SpaceMono-Regular.ttf")
       });
       this.setState({ fontLoaded: true });
     })();
@@ -631,6 +632,7 @@ export default class AppPlay extends React.Component {
             </TouchableHighlight>
             <Slider
               style={styles.volumeSlider}
+
               trackImage={ICON_TRACK_1.module}
               thumbImage={ICON_THUMB_2.module}
               value={1}
@@ -785,7 +787,10 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     backgroundColor: BACKGROUND_COLOR
   },
-  wrapper: {},
+  wrapper: {
+    // height: '100px',
+    // width: '100px'
+  },
   nameContainer: {
     height: FONT_SIZE
   },
@@ -831,6 +836,8 @@ const styles = StyleSheet.create({
     paddingRight: 20
   },
   button: {
+    minHeight: ICON_THUMB_1.height * 2.0,
+    minWidth: ICON_THUMB_1.width * 2.0,
     backgroundColor: BACKGROUND_COLOR
   },
   buttonsContainerBase: {
