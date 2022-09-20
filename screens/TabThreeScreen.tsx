@@ -28,6 +28,7 @@ export default function TabTwoScreen() {
   const [inputURL, setInputURl] = React.useState(DEFAULT_PAGE);
   const [info, setInfo] = React.useState(DEFAULT_PAGE);
 
+  const [limitSplit, setLimitSplit] = React.useState(MAX_LENGTH_CHARACTER_TRUNC);
   const [remoteData, setRemoteData] = React.useState();
   const [selector, setSelector] = React.useState(CSS_SELECTOR);
 
@@ -59,7 +60,7 @@ export default function TabTwoScreen() {
         const content = getContentInHtml(html, selector);
         setRemoteData(content);
         const arrStr = new Array();
-        truncate(content, arrStr, MAX_LENGTH_CHARACTER_TRUNC);
+        truncate(content, arrStr, limitSplit || MAX_LENGTH_CHARACTER_TRUNC);
         setData({...data, content: arrStr})
       });
     }
@@ -82,6 +83,14 @@ export default function TabTwoScreen() {
           />
         </Stack>
         <Stack mx="4">
+        <Flex
+              direction="row"
+              mb="2.5"
+              mt="1.5"
+              _text={{
+                color: "coolGray.800",
+              }}
+            >
           <FormControl.Label>Query selector</FormControl.Label>
           <Input
             type="text"
@@ -89,6 +98,14 @@ export default function TabTwoScreen() {
             onChangeText={(value) => setSelector(value)}
             placeholder="text"
           />
+          <FormControl.Label>Max length</FormControl.Label>
+          <Input
+            type="number"
+            value={limitSplit}
+            onChangeText={(value) => setLimitSplit(value)}
+            placeholder="limit string length to split"
+          />
+          </Flex>
         </Stack>
         <Stack mx="4">
             <Flex

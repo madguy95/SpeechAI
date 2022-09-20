@@ -194,8 +194,8 @@ export function ApiRaw() {
                 color: "coolGray.800",
               }}
             >
-              <Button onPress={() => storeData()}>Save Config</Button>
-              <Button onPress={() => loadConfig()}>Load Config</Button>
+              <Button style={{marginRight: "10px"}} onPress={() => storeData()}>Save Config</Button>
+              <Button style={{marginRight: "10px"}}  onPress={() => loadConfig()}>Load Config</Button>
             </Flex>
           </Stack>
         </FormControl>
