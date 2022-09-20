@@ -1,7 +1,7 @@
 import { delay, objToQueryString } from "../util";
 import { Api } from "../model/api";
 
-export async function callApiGetMp3 (text, signal, apiInfo: Api): Promise<any> {
+export async function callApiGetMp3 (text: string, signal: any, apiInfo: Api): Promise<any> {
     try {
       const queryString = apiInfo.queryString
         ? objToQueryString(
@@ -49,7 +49,7 @@ export async function callApiGetMp3 (text, signal, apiInfo: Api): Promise<any> {
 
   export async function loadHtml(linkCurrent?: string): Promise<string> {
     if (!linkCurrent) {
-      return
+      return '';
     }
     const response = await fetch(linkCurrent);
     const text = await response.text();

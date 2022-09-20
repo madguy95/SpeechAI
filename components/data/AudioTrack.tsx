@@ -22,7 +22,7 @@ const MAX_TRANSFER_TEXT_IN_TIME = 3;
 const MAX_LOAD_FILE_IN_TIME = 3;
 const API_DELAY_TIME = 2000; // ms
 
-export function AudioTrack(props) {
+export function AudioTrack(props: { content: string; }) {
   const { data } = useContext(ReferenceDataContext);
   const [apiInfo, setApiInfo] = useState<Api>(ApiDefault);
 

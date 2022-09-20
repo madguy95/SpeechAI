@@ -20,6 +20,7 @@ function ReferenceDataContextProvider(props: { children: boolean | React.ReactCh
     }),
     body: "",
     method: "POST",
+    content: []
   });
 
   useEffect(() => {
