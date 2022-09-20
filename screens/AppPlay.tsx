@@ -26,7 +26,10 @@ import { MaterialIcons } from "@expo/vector-icons";
 import ListItemPlay from "../components/data/ListItemPlay";
 
 class Icon {
-  constructor(module, width, height) {
+  module: any;
+  width: number;
+  height: number;
+  constructor(module: any, width: number, height: number) {
     this.module = module;
     this.width = width;
     this.height = height;
@@ -35,7 +38,10 @@ class Icon {
 }
 
 class PlaylistItem {
-  constructor(name, uri, isVideo) {
+  name: string;
+  uri: string;
+  isVideo: boolean;
+  constructor(id: number, name: string, uri: string, isVideo: boolean) {
     this.name = name;
     this.uri = uri;
     this.isVideo = isVideo;
@@ -43,7 +49,7 @@ class PlaylistItem {
 }
 
 const PLAYLIST = [
-  new PlaylistItem(
+  new PlaylistItem(0,
     "Comfort Fit - “Sorry”",
     "https://s3.amazonaws.com/exp-us-standard/audio/playlist-example/Comfort_Fit_-_03_-_Sorry.mp3",
     false
@@ -53,7 +59,7 @@ const PLAYLIST = [
   //   "http://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
   //   true
   // ),
-  new PlaylistItem(
+  new PlaylistItem(1,
     "Mildred Bailey – “All Of Me”",
     "https://ia800304.us.archive.org/34/items/PaulWhitemanwithMildredBailey/PaulWhitemanwithMildredBailey-AllofMe.mp3",
     false
@@ -63,7 +69,7 @@ const PLAYLIST = [
   //   "https://ia800501.us.archive.org/11/items/popeye_i_dont_scare/popeye_i_dont_scare_512kb.mp4",
   //   true
   // ),
-  new PlaylistItem(
+  new PlaylistItem(2,
     "Podington Bear - “Rubber Robot”",
     "https://s3.amazonaws.com/exp-us-standard/audio/playlist-example/Podington_Bear_-_Rubber_Robot.mp3",
     false
@@ -140,10 +146,16 @@ const RATE_SCALE = 3.0;
 const VIDEO_CONTAINER_HEIGHT = (DEVICE_HEIGHT * 2.0) / 5.0 - FONT_SIZE * 2;
 import { ReferenceDataContext } from '../components/share/ReferenceDataContext'
 import { truncate } from "../components/util";
+import { DataBatch } from "../components/data/DataBatch";
 export default class AppPlay extends React.Component {
   static contextType = ReferenceDataContext;
+  index: number;
+  isSeeking: boolean;
+  shouldPlayAtEndOfSeek: boolean;
+  playbackInstance: null;
+  _video: any;
 
-  constructor(props) {
+  constructor(props: {} | Readonly<{}>) {
     super(props);
     this.index = 0;
     this.isSeeking = false;
@@ -170,7 +182,8 @@ export default class AppPlay extends React.Component {
       useNativeControls: false,
       fullscreen: false,
       throughEarpiece: false,
-      playList: PLAYLIST
+      playList: PLAYLIST, 
+      content: []
     };
   }
 
@@ -197,65 +210,102 @@ export default class AppPlay extends React.Component {
 
   componentDidUpdate(prevProps: Readonly<{}>, prevState: Readonly<{}>, snapshot?: any): void {
     // console.log(this.context?.data?.content ? 'DidUpdate' : '');
-    if (this.context.data.content) {
-      const arrStr = new Array();
-      truncate(this.context.data.content, arrStr, 200);
-      // console.log(arrStr)
+    if (this.context.data.content && JSON.stringify(this.context.data.content) != JSON.stringify(this.state.content)) {
       const arrPlay = new Array();
       // arrPlay.push(...PLAYLIST);
-      arrStr.forEach((item) => {
-        arrPlay.push(new PlaylistItem(item,
-        "https://s3.amazonaws.com/exp-us-standard/audio/playlist-example/Comfort_Fit_-_03_-_Sorry.mp3",
+      this.context.data.content.forEach((item: string, index: number) => {
+        arrPlay.push(new PlaylistItem(index, item,
+        "", //https://s3.amazonaws.com/exp-us-standard/audio/playlist-example/Comfort_Fit_-_03_-_Sorry.mp3",
         false))
       })
-      if (JSON.stringify(arrPlay) != JSON.stringify(this.state.playList)) {
-        this.setState({ playList: arrPlay})
-      }
+      // if (JSON.stringify(arrPlay) != JSON.stringify(this.state.playList)) {
+      this.setState({ playList: arrPlay, content: this.context.data.content})
+      // reset lai trang thai player khi load text moi
+      this._onStopPressed();
+      this._loadNewPlaybackInstance(false);
+      // }
     }
   }
 
-  async _loadNewPlaybackInstance(playing) {
+  async setPlayList (playListArr: any) {
+    this.setState({ playList: playListArr});
+    if (this.playbackInstance == null) {
+      const source = { uri: this.state.playList[this.index].uri };
+      const initialStatus = {
+        shouldPlay: this.state.shouldPlay,
+        rate: this.state.rate,
+        shouldCorrectPitch: this.state.shouldCorrectPitch,
+        volume: this.state.volume,
+        isMuted: this.state.muted,
+        isLooping: this.state.loopingType === LOOPING_TYPE_ONE
+        // // UNCOMMENT THIS TO TEST THE OLD androidImplementation:
+        // androidImplementation: 'MediaPlayer',
+      };
+
+      if (this.state.playList[this.index].isVideo) {
+        await this._video.loadAsync(source, initialStatus);
+        // this._video.onPlaybackStatusUpdate(this._onPlaybackStatusUpdate);
+        this.playbackInstance = this._video;
+        const status = await this._video.getStatusAsync();
+      } else {
+        const { sound, status } = await Audio.Sound.createAsync(
+          source,
+          initialStatus,
+          this._onPlaybackStatusUpdate
+        );
+        this.playbackInstance = sound;
+      }
+
+      this._updateScreenForLoading(false);
+    }
+  }
+
+  async _loadNewPlaybackInstance(playing: boolean) {
     if (this.playbackInstance != null) {
       await this.playbackInstance.unloadAsync();
       // this.playbackInstance.setOnPlaybackStatusUpdate(null);
       this.playbackInstance = null;
     }
+    // neu uri chua dc load thi chua play
+    if (this.state.playList[this.index].uri && this.state.playList[this.index].uri != '') {
+      const source = { uri: this.state.playList[this.index].uri };
+      const initialStatus = {
+        shouldPlay: playing,
+        rate: this.state.rate,
+        shouldCorrectPitch: this.state.shouldCorrectPitch,
+        volume: this.state.volume,
+        isMuted: this.state.muted,
+        isLooping: this.state.loopingType === LOOPING_TYPE_ONE
+        // // UNCOMMENT THIS TO TEST THE OLD androidImplementation:
+        // androidImplementation: 'MediaPlayer',
+      };
 
-    const source = { uri: this.state.playList[this.index].uri };
-    const initialStatus = {
-      shouldPlay: playing,
-      rate: this.state.rate,
-      shouldCorrectPitch: this.state.shouldCorrectPitch,
-      volume: this.state.volume,
-      isMuted: this.state.muted,
-      isLooping: this.state.loopingType === LOOPING_TYPE_ONE
-      // // UNCOMMENT THIS TO TEST THE OLD androidImplementation:
-      // androidImplementation: 'MediaPlayer',
-    };
+      if (this.state.playList[this.index].isVideo) {
+        await this._video.loadAsync(source, initialStatus);
+        // this._video.onPlaybackStatusUpdate(this._onPlaybackStatusUpdate);
+        this.playbackInstance = this._video;
+        const status = await this._video.getStatusAsync();
+      } else {
+        const { sound, status } = await Audio.Sound.createAsync(
+          source,
+          initialStatus,
+          this._onPlaybackStatusUpdate
+        );
+        this.playbackInstance = sound;
+      }
 
-    if (this.state.playList[this.index].isVideo) {
-      await this._video.loadAsync(source, initialStatus);
-      // this._video.onPlaybackStatusUpdate(this._onPlaybackStatusUpdate);
-      this.playbackInstance = this._video;
-      const status = await this._video.getStatusAsync();
+      this._updateScreenForLoading(false);
     } else {
-      const { sound, status } = await Audio.Sound.createAsync(
-        source,
-        initialStatus,
-        this._onPlaybackStatusUpdate
-      );
-      this.playbackInstance = sound;
+      this.setState({isLoading: true})
     }
-
-    this._updateScreenForLoading(false);
   }
 
-  _mountVideo = component => {
+  _mountVideo = (component: any) => {
     this._video = component;
     this._loadNewPlaybackInstance(false);
   };
 
-  _updateScreenForLoading(isLoading) {
+  _updateScreenForLoading(isLoading: boolean) {
     if (isLoading) {
       this.setState({
         showVideo: false,
@@ -274,7 +324,7 @@ export default class AppPlay extends React.Component {
     }
   }
 
-  _onPlaybackStatusUpdate = status => {
+  _onPlaybackStatusUpdate = (status: { isLoaded: any; positionMillis: any; durationMillis: any; shouldPlay: any; isPlaying: any; isBuffering: any; rate: any; isMuted: any; volume: any; isLooping: any; shouldCorrectPitch: any; didJustFinish: any; error: any; }) => {
     if (status.isLoaded) {
       this.setState({
         playbackInstancePosition: status.positionMillis,
@@ -303,15 +353,15 @@ export default class AppPlay extends React.Component {
     console.log(`ON LOAD START`);
   };
 
-  _onLoad = status => {
+  _onLoad = (status: any) => {
     console.log(`ON LOAD : ${JSON.stringify(status)}`);
   };
 
-  _onError = error => {
+  _onError = (error: any) => {
     console.log(`ON ERROR : ${error}`);
   };
 
-  _onReadyForDisplay = event => {
+  _onReadyForDisplay = (event: { naturalSize: { height: number; width: number; }; }) => {
     const widestHeight =
       (DEVICE_WIDTH * event.naturalSize.height) / event.naturalSize.width;
     if (widestHeight > VIDEO_CONTAINER_HEIGHT) {
@@ -330,18 +380,18 @@ export default class AppPlay extends React.Component {
     }
   };
 
-  _onFullscreenUpdate = event => {
+  _onFullscreenUpdate = (event: { fullscreenUpdate: any; }) => {
     console.log(
       `FULLSCREEN UPDATE : ${JSON.stringify(event.fullscreenUpdate)}`
     );
   };
 
-  _advanceIndex(forward) {
+  _advanceIndex(forward: boolean) {
     this.index =
       (this.index + (forward ? 1 : this.state.playList.length - 1)) % this.state.playList.length;
   }
 
-  async _updatePlaybackInstanceForIndex(playing) {
+  async _updatePlaybackInstanceForIndex(playing: boolean) {
     this._updateScreenForLoading(true);
 
     this.setState({
@@ -396,13 +446,13 @@ export default class AppPlay extends React.Component {
     }
   };
 
-  _onVolumeSliderValueChange = value => {
+  _onVolumeSliderValueChange = (value: any) => {
     if (this.playbackInstance != null) {
       this.playbackInstance.setVolumeAsync(value);
     }
   };
 
-  _trySetRate = async (rate, shouldCorrectPitch) => {
+  _trySetRate = async (rate: number, shouldCorrectPitch: boolean) => {
     if (this.playbackInstance != null) {
       try {
         await this.playbackInstance.setRateAsync(rate, shouldCorrectPitch);
@@ -412,15 +462,15 @@ export default class AppPlay extends React.Component {
     }
   };
 
-  _onRateSliderSlidingComplete = async value => {
+  _onRateSliderSlidingComplete = async (value: number) => {
     this._trySetRate(value * RATE_SCALE, this.state.shouldCorrectPitch);
   };
 
-  _onPitchCorrectionPressed = async value => {
+  _onPitchCorrectionPressed = async (value: any) => {
     this._trySetRate(this.state.rate, !this.state.shouldCorrectPitch);
   };
 
-  _onSeekSliderValueChange = value => {
+  _onSeekSliderValueChange = (value: any) => {
     if (this.playbackInstance != null && !this.isSeeking) {
       this.isSeeking = true;
       this.shouldPlayAtEndOfSeek = this.state.shouldPlay;
@@ -428,7 +478,7 @@ export default class AppPlay extends React.Component {
     }
   };
 
-  _onSeekSliderSlidingComplete = async value => {
+  _onSeekSliderSlidingComplete = async (value: number) => {
     if (this.playbackInstance != null) {
       this.isSeeking = false;
       const seekPosition = value * this.state.playbackInstanceDuration;
@@ -454,12 +504,12 @@ export default class AppPlay extends React.Component {
     return 0;
   }
 
-  _getMMSSFromMillis(millis) {
+  _getMMSSFromMillis(millis: number) {
     const totalSeconds = millis / 1000;
     const seconds = Math.floor(totalSeconds % 60);
     const minutes = Math.floor(totalSeconds / 60);
 
-    const padWithZero = number => {
+    const padWithZero = (number: number) => {
       const string = number.toString();
       if (number < 10) {
         return "0" + string;
@@ -515,7 +565,7 @@ export default class AppPlay extends React.Component {
     );
   };
 
-  _onChangeSelect = (id) => {
+  _onChangeSelect = (id: any) => {
     if (this.playbackInstance != null) {
       this.index = id;
       this._updatePlaybackInstanceForIndex(this.state.shouldPlay);
@@ -560,6 +610,7 @@ export default class AppPlay extends React.Component {
             useNativeControls={this.state.useNativeControls}
           /> */}
           <ListItemPlay data={this.state.playList} onChange={this._onChangeSelect} idSelected={this.index}></ListItemPlay>
+          <DataBatch content="" idSelected={this.index} playList={this.state.playList} setPlayList={this.setPlayList.bind(this)}></DataBatch>
           </View>
         </View>
         <View

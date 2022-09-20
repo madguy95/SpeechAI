@@ -1,26 +1,32 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Dimensions,
     FlatList,
     Image,
+    ListRenderItemInfo,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+import { PlaylistItem } from "../model/api";
 
-export default function ListItemPlay(props) {
+export default function ListItemPlay(props: { data?: any; idSelected?: any; onChange?: any; }) {
 
     const { idSelected, onChange } = props
     const [loading, setLoading] = useState(true);
-    const [dataSource, setDataSource] = useState([]);
+    const [dataSource, setDataSource] = useState<PlaylistItem[]>([]);
 
     useEffect(() => {
         fetchData();
     }, [props.data])
 
     const fetchData = () => {
-        const dataSource = props.data.map((item, index) => {
+        const dataSource = props.data.map((item: { id: any; title: any; name: any; isSelect: boolean; 
+            selectedClass: { paddingVertical: number; margin: number; flexDirection: "row"; 
+            backgroundColor: string; justifyContent: "flex-start"; alignItems: "center"; zIndex: number; }; },
+             index: any) => {
             item.id = index;
             item.title = item.name;
             item.isSelect = false;
@@ -33,30 +39,12 @@ export default function ListItemPlay(props) {
 
     const FlatListItemSeparator = () => <View style={styles.line} />;
 
-    const selectItem = (id) => {
-        // data.item.isSelect = !data.item.isSelect;
-        // data.item.selectedClass = data.item.isSelect
-        //     ? styles.selected
-        //     : styles.list;
-        // const index = this.state.dataSource.findIndex(
-        //     (item) => data.item.id === item.id
-        // );
-        // const dataSourceClone = this.state.dataSource.map((item, index2) => {
-        //     if (index2 != index) {
-        //         item.isSelect = false;
-        //     }
-        //     return item;
-        // })
-        // dataSourceClone[index] = data.item;
+    const selectItem = (id: any) => {
         onChange(id);
     };
 
-    // goToStore = () =>
-    //     this.props.navigation.navigate("Expenses", {
-    //         selected: this.state.selected,
-    //     });
 
-    const renderItem = (data) => (
+    const renderItem = (data: ListRenderItemInfo<PlaylistItem>) => (
         <TouchableOpacity
             style={[styles.list, data.item.id == idSelected ? styles.selected : styles.list]}
             onPress={() => selectItem(data.item.id)}
@@ -74,10 +62,6 @@ export default function ListItemPlay(props) {
     );
 
     return (
-        // const itemNumber = this.state.dataSource.filter(
-        //     (item) => item.isSelect
-        // ).length;
-
         loading ?
             (
                 <View style={styles.loader}>
@@ -91,27 +75,13 @@ export default function ListItemPlay(props) {
                         ItemSeparatorComponent={FlatListItemSeparator}
                         renderItem={(item) => renderItem(item)}
                         keyExtractor={(item) => item.id.toString()}
-                        // extraData={state}
+                        extraData={idSelected}
                     />
-                    {/* <View style={styles.numberBox}>
-                    <Text style={styles.number}>{itemNumber}</Text>
-                </View> */}
-                    {/* <TouchableOpacity style={styles.icon}>
-                    <View>
-                        <Icon raised
-                            name="shopping-cart"
-                            type="font-awesome"
-                            color="#e3e3e3"
-                            size={30}
-                            onPress={() => this.goToStore()}
-                            containerStyle={{ backgroundColor: "#FA7B5F" }}
-                        />
-                    </View>
-                </TouchableOpacity> */}
                 </View>
             )
     )
 }
+const { width: DEVICE_WIDTH, height: DEVICE_HEIGHT } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
     container: {
@@ -142,7 +112,7 @@ const styles = StyleSheet.create({
         zIndex: -1,
     },
 
-    lightText: { color: "#f7f7f7", width: 200, paddingLeft: 15, fontSize: 12 },
+    lightText: { color: "#f7f7f7", width: DEVICE_WIDTH, paddingLeft: 15, fontSize: 12 },
 
     line: {
         height: 0.5,

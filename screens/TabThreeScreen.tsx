@@ -63,7 +63,9 @@ export default function TabTwoScreen() {
       loadHtml(inputURL).then((html) => {
         const content = getContentInHtml(html, selector);
         setRemoteData(content);
-        setData({...data, content: content})
+        const arrStr = new Array();
+        truncate(content, arrStr, 200);
+        setData({...data, content: arrStr})
       });
     }
   }

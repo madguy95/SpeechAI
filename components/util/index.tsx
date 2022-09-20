@@ -49,7 +49,7 @@ export function truncate(str: string, arrStr: any[], n: number): any {
     return truncate(str.substring(subString.length, str.length - 1), arrStr, n);
   }
 
-  export function getContentInHtml(html, selector): any {
+  export function getContentInHtml(html: string | Cheerio.Node | Cheerio.Node[] | Buffer, selector: string): any {
     if(html) {
       const $ = Cheerio.load(html);
       return $(selector).text() || "";

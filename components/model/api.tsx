@@ -5,7 +5,8 @@ export declare type Api = {
     urlAudio: string,
     queryString: string,
     body: string,
-    method: string
+    method: string,
+    content: any[]
 }
 
 export const ApiDefault: Api = {
@@ -20,4 +21,19 @@ export const ApiDefault: Api = {
     }),
     body: "",
     method: "POST",
+}
+
+export class PlaylistItem {
+  id: string;
+  uri: string;
+  name: any;
+  thumbnailUrl: string | undefined;
+  title: any;
+  isVideo: boolean;
+  constructor(id: any , name: any, uri: string, isVideo: any) {
+    this.id = id;
+    this.name = name;
+    this.uri = uri;
+    this.isVideo = isVideo;
+  }
 }
